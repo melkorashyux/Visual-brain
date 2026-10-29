@@ -1,6 +1,6 @@
 {
   "name": "visual-brain",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "A local-first design inspiration library: save screenshots, auto-tag them with AI, and find them again.",
   "author": "Mostafa Elkorashy",
