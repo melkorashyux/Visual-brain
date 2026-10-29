@@ -31,6 +31,18 @@ Builds a distributable (`.dmg` / `.nsis` / `.AppImage`) into `release/`. The pac
 bundles Next's standalone server and runs it with Electron's own embedded Node runtime,
 so end users don't need Node or npm installed at all.
 
+### Releasing a new version
+
+Installed copies of the app check GitHub Releases on launch, download a newer
+version in the background, and install it the next time they quit (Linux and
+Windows; macOS updates need a signed and notarized build first).
+
+1. Bump `"version"` in `package.json` (e.g. `0.2.0`) and commit it.
+2. Tag and push: `git tag v0.2.0 && git push origin v0.2.0`.
+3. The **Release** GitHub Action builds Linux, Windows and macOS installers and
+   attaches them to a draft release. Open it on GitHub, edit the notes, and
+   click **Publish** — that's when installed apps see the update.
+
 ### Using a local model instead (Ollama)
 
 Pick **Ollama (local model)** in **Settings** (the default) to run auto-tagging entirely
@@ -136,3 +148,7 @@ app, so the extension can find its port.
 
 Next.js (App Router, TypeScript) · Tailwind CSS v4 · better-sqlite3 · @anthropic-ai/sdk ·
 Electron (desktop packaging via electron-builder)
+
+## License
+
+[MIT](LICENSE) © 2026 Mostafa Elkorashy

@@ -3,6 +3,7 @@ const path = require("path");
 const http = require("http");
 const net = require("net");
 const { spawn } = require("child_process");
+const { autoUpdater } = require("electron-updater");
 
 // Sets the userData folder name (~/Library/Application Support/Visual Brain
 // on macOS) — must run before any app.getPath("userData") call, since
@@ -141,8 +142,21 @@ function stopServer() {
   }
 }
 
+// Checks GitHub Releases (the "publish" config in package.json) for a newer
+// version, downloads it in the background, shows a system notification, and
+// installs it the next time the app quits. Skipped on macOS until builds are
+// signed and notarized — unsigned Mac apps can't install updates.
+function checkForUpdates() {
+  if (!app.isPackaged || process.platform === "darwin") return;
+  autoUpdater.checkForUpdatesAndNotify().catch((err) => {
+    console.error("Update check failed:", err);
+  });
+}
+
 app.whenReady().then(async () => {
   if (!app.hasSingleInstanceLock()) return;
+
+  checkForUpdates();
 
   const port = await findFreePort();
   appUrl = `http://localhost:${port}`;

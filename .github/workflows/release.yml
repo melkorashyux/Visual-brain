@@ -1,0 +1,63 @@
+# Builds Visual Brain for Linux, Windows and macOS when a version tag is
+# pushed, and attaches the installers to a draft GitHub Release. Publishing
+# that draft is what makes the update visible to installed apps.
+#
+#   1. Bump "version" in package.json (e.g. 0.2.0) and commit.
+#   2. git tag v0.2.0 && git push origin v0.2.0
+#   3. When this finishes, open the draft release on GitHub and publish it.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  draft:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the tag matches package.json
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME doesn't match package.json version $version" >&2
+            exit 1
+          fi
+      # Created once up front so the three build jobs below all upload into
+      # the same release instead of racing to create one each.
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "$GITHUB_REF_NAME" --draft --title "$GITHUB_REF_NAME" --generate-notes
+
+  build:
+    needs: draft
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux
+          - os: windows-latest
+            target: win
+          - os: macos-latest
+            target: mac
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # Same major as local builds; native modules (better-sqlite3,
+          # sharp) install prebuilt binaries for this Node and this OS.
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Build and upload
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # No Apple signing identity yet — build the Mac app unsigned.
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+        run: npm run dist:${{ matrix.target }} -- --publish always

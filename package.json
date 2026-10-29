@@ -2,6 +2,14 @@
   "name": "visual-brain",
   "version": "0.1.0",
   "private": true,
+  "description": "A local-first design inspiration library: save screenshots, auto-tag them with AI, and find them again.",
+  "author": "Mostafa Elkorashy",
+  "license": "MIT",
+  "homepage": "https://github.com/melkorashyux/visual-brain",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/melkorashyux/visual-brain.git"
+  },
   "main": "electron/main.js",
   "scripts": {
     "dev": "next dev",
@@ -17,6 +25,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.117.1",
     "better-sqlite3": "^13.0.3",
+    "electron-updater": "6.8.11",
     "next": "16.4.3",
     "react": "19.2.8",
     "react-dom": "19.2.8",
@@ -48,7 +57,8 @@
     "files": [
       "electron/**/*",
       ".next/standalone/**/*",
-      "package.json"
+      "package.json",
+      "!node_modules/{next,@next,react,react-dom,better-sqlite3,sharp,@img,@anthropic-ai,uuid,caniuse-lite,@swc,styled-jsx}/**/*"
     ],
     "mac": {
       "target": "dmg",
@@ -58,7 +68,13 @@
       "target": "nsis"
     },
     "linux": {
-      "target": "AppImage"
+      "target": "AppImage",
+      "category": "Graphics"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "melkorashyux",
+      "repo": "visual-brain"
     }
   }
 }
