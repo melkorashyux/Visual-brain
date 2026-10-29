@@ -41,8 +41,9 @@
       input {
         width: 100%;
         box-sizing: border-box;
-        background: #141414;
-        border: 1px solid #262626;
+        background: #0a0a0a;
+        /* matches --color-border-strong in the app: ~3:1, reads as a field */
+        border: 1px solid #6b6b6b;
         color: #ededed;
         font-family: inherit;
         font-size: 12px;
@@ -104,7 +105,7 @@
         margin: 16px 0;
       }
       p.hint {
-        color: #5a5a5a;
+        color: #808080;
         font-size: 10px;
         margin: 4px 0 0;
         line-height: 1.5;
@@ -118,7 +119,8 @@
     <input id="brainUrl" type="text" placeholder="http://localhost:3000" />
 
     <label for="brainToken">Visual Brain Token</label>
-    <input id="brainToken" type="password" placeholder="paste VISUAL_BRAIN_TOKEN from .env.local" />
+    <input id="brainToken" type="password" placeholder="paste from Visual Brain → Settings" />
+    <p class="hint">In the app: Settings → Chrome Extension → copy.</p>
 
     <button id="test">Test Connection</button>
     <div id="status"></div>

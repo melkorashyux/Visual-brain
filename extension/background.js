@@ -11,7 +11,16 @@ const SUPPORTED_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/
 // MV3 service workers are ephemeral and don't remember previously created
 // context menus across restarts, so the menu is rebuilt from scratch on
 // every install/startup, and again whenever the popup creates a folder.
-async function rebuildMenu() {
+let rebuildChain = Promise.resolve();
+
+function rebuildMenu() {
+  // Serialized: a storage change and a popup message can arrive together,
+  // and two interleaved runs would create duplicate menu ids.
+  rebuildChain = rebuildChain.then(buildMenu, buildMenu);
+  return rebuildChain;
+}
+
+async function buildMenu() {
   await chrome.contextMenus.removeAll();
 
   chrome.contextMenus.create({
@@ -23,11 +32,11 @@ async function rebuildMenu() {
   let folders = [];
   try {
     folders = await fetchFolders();
-  } catch {
+  } catch (err) {
     chrome.contextMenus.create({
       id: MENU_ERROR,
       parentId: MENU_ROOT,
-      title: "⚠ Can't reach Visual Brain — open popup to fix settings",
+      title: `⚠ ${err instanceof Error ? err.message : "Can't reach Visual Brain"}`,
       contexts: ["image"],
       enabled: false,
     });
@@ -72,6 +81,12 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.runtime.onStartup.addListener(() => {
   rebuildMenu();
+});
+
+// A new token or URL pasted into the popup should fix the menu right away —
+// otherwise it keeps the error it was built with until Chrome restarts.
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && (changes.brainToken || changes.brainUrl)) rebuildMenu();
 });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {

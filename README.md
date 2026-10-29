@@ -9,20 +9,17 @@ for each one. Everything runs on your machine — no accounts, no cloud database
 
 ```bash
 npm install
-cp .env.example .env.local   # then paste your key into .env.local
 npm run electron
 ```
 
 `npm run electron` launches the desktop app in dev mode — it starts the Next.js server
 for you in the background and opens it in an app window, no browser required.
 
-Get an API key at [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys)
-and put it in `.env.local` as `ANTHROPIC_API_KEY`. Without a key, uploads still work —
-each screenshot just falls back to a minimal record (title = filename) instead of a
-full Claude analysis.
-
-Optionally set `ANALYSIS_MODEL` in `.env.local` to swap the vision model (defaults to
-`claude-sonnet-5`).
+To tag with Claude, open **Settings**, pick **Claude (Anthropic API)** and paste a key from
+[console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys). The model
+can be changed there too (defaults to `claude-sonnet-5`). Without a key, uploads still
+work — each screenshot just falls back to a minimal record (title = filename) instead of
+a full Claude analysis.
 
 ### Building the desktop app
 
@@ -36,8 +33,8 @@ so end users don't need Node or npm installed at all.
 
 ### Using a local model instead (Ollama)
 
-Set `ANALYSIS_PROVIDER=ollama` in `.env.local` to run auto-tagging entirely on your
-machine instead of calling Claude — no API key, no upload leaves your machine.
+Pick **Ollama (local model)** in **Settings** (the default) to run auto-tagging entirely
+on your machine instead of calling Claude — no API key, no upload leaves your machine.
 Requires [Ollama](https://ollama.com) running locally with a vision-capable model
 pulled:
 
@@ -46,8 +43,8 @@ ollama pull gemma3:4b
 ollama serve
 ```
 
-`OLLAMA_MODEL` defaults to `gemma3:4b` and `OLLAMA_HOST` defaults to
-`http://localhost:11434` — override either in `.env.local` if needed. Local models
+The model defaults to `gemma3:4b` and the host to `http://localhost:11434` — change
+either in **Settings**. Local models
 are noticeably weaker than Claude at this task (nuanced tags, naming aesthetic
 movements, staying in valid JSON), so expect lower-quality results in exchange for
 running fully offline.
@@ -56,28 +53,17 @@ Both the analysis provider and local UI preferences (font, accent color, header 
 live under **Settings** inside the app, in the "Settings" and "Developer" sections
 respectively.
 
-`.env.local` also comes with a `VISUAL_BRAIN_TOKEN` already generated (and mirrored as
-`NEXT_PUBLIC_VISUAL_BRAIN_TOKEN` for the app's own UI). This is the secret the Chrome
-extension authenticates with — see [Chrome extension](#chrome-extension-save-to-visual-brain)
-below. It's specific to your machine and lives only in `.env.local` (gitignored) —
-never commit it or paste it into this file.
-
-Generate your own any time with:
-
-```bash
-node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"
-```
-
-and paste the value into both `VISUAL_BRAIN_TOKEN` and `NEXT_PUBLIC_VISUAL_BRAIN_TOKEN` in `.env.local`.
+The Chrome extension authenticates with a token the app generates on first launch and keeps
+in the data dir (`extension-token`), so every install has its own. Copy it from
+**Settings → Chrome Extension**, which can also regenerate it.
 
 ## Where data lives
 
 - `data/visual-brain.db` — SQLite database (items, folders — metadata only, no image bytes)
 - `data/uploads/` — the actual screenshot/image files, referenced by filename from the db
 
-Both are gitignored except for three seed placeholder SVGs used to populate the library
-on first run. Deleting `data/visual-brain.db` resets your library (images in `data/uploads`
-are untouched but become orphaned).
+Both are gitignored, and a new library starts empty. Deleting `data/visual-brain.db` resets
+your library (images in `data/uploads` are untouched but become orphaned).
 
 ## How it works
 
@@ -114,13 +100,14 @@ pick a folder, and have it saved and analyzed exactly like an upload.
 
 **Load it:**
 
-1. Make sure the app is running (`npm run electron`, or the installed desktop app) — the
-   extension talks to `http://localhost:3000`, which the app serves internally.
+1. Make sure the app is running (`npm run electron`, or the installed desktop app). It
+   serves on `http://localhost:3000`, or the next free port up to 3009 — the extension
+   finds it automatically.
 2. Open `chrome://extensions`, enable **Developer mode** (top right).
 3. Click **Load unpacked**, select the `extension/` folder.
-4. Click the extension's icon in the toolbar to open its popup, paste your `VISUAL_BRAIN_TOKEN`
-   (see above) into **Visual Brain Token**, and click **Test Connection** to confirm it can
-   reach Visual Brain.
+4. In the app, open **Settings → Chrome Extension** and click **copy**. Then click the
+   extension's icon in the toolbar, paste into **Visual Brain Token**, and click
+   **Test Connection**.
 
 **Use it:** right-click any image on any page → **Save to Visual Brain** → pick a folder. A
 notification confirms the save, and the image shows up in your Library within a few
@@ -141,7 +128,9 @@ exact match against `chrome-extension://<your-extension-id>`.
 - `POST /api/ingest` — save + analyze `{ imageBase64, mediaType, folderId, sourceUrl, pageUrl }`
   (or `{ sourceUrl, pageUrl }` alone — the server fetches the image itself)
 
-All four require an `X-Visual-Brain-Token` header matching `VISUAL_BRAIN_TOKEN`.
+All four require an `X-Visual-Brain-Token` header matching the extension token (the app's
+own UI is let through as same-origin). `GET /api/health` is open and only identifies the
+app, so the extension can find its port.
 
 ## Stack
 

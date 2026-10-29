@@ -145,6 +145,8 @@ export function LibraryClient({ initialItems }: { initialItems: BrainItem[] }) {
     return [...knownTags].sort((a, b) => (counts.get(b) ?? 0) - (counts.get(a) ?? 0));
   }, [items, knownTags]);
 
+  const libraryEmpty = items.length === 0 && pending.length === 0;
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return items.filter((item) => {
@@ -394,38 +396,39 @@ export function LibraryClient({ initialItems }: { initialItems: BrainItem[] }) {
         />
 
         <div className="min-w-0 flex-1">
-          <div className="flex flex-col gap-6">
-            <SearchBar value={search} onChange={setSearch} />
-            <FilterBar
-              categories={categories}
-              activeCategory={activeCategory}
-              onCategoryChange={setActiveCategory}
-              tags={tags}
-              activeTags={activeTags}
-              onTagToggle={toggleTag}
-            />
-          </div>
-
-          {items.length === 0 && pending.length === 0 ? (
+          {libraryEmpty ? (
+            // Nothing to search or filter yet, so only the drop zone shows.
             <div
-              className={`mt-16 flex flex-col items-center justify-center gap-4 border border-dashed py-24 text-center transition-colors duration-150 ${
-                dragOver ? "border-accent" : "border-border"
+              className={`flex flex-col items-center justify-center gap-4 border border-dashed py-24 text-center transition-colors duration-150 ${
+                dragOver ? "border-accent" : "border-border-strong"
               }`}
             >
-              <p className="tracked-label text-dim">Visual Brain is empty</p>
+              <p className="tracked-label text-dim">Your library is empty</p>
               <p className="max-w-xs text-muted">
-                Drop in screenshots of designs you like — Claude will title, tag, and explain
-                each one.
+                Drop screenshots here, or right-click any image on the web with the Chrome
+                extension.
               </p>
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="tracked-label mt-2 border border-border px-4 py-2 transition-colors duration-150 hover:bg-text hover:text-bg"
+                className="tracked-label mt-2 border border-accent bg-accent px-4 py-2 text-bg"
               >
                 + Add Screenshots
               </button>
             </div>
           ) : (
             <>
+              <div className="flex flex-col gap-6">
+                <SearchBar value={search} onChange={setSearch} />
+                <FilterBar
+                  categories={categories}
+                  activeCategory={activeCategory}
+                  onCategoryChange={setActiveCategory}
+                  tags={tags}
+                  activeTags={activeTags}
+                  onTagToggle={toggleTag}
+                />
+              </div>
+
               <div className="mt-10 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-4">
                   <p className="tracked-label text-dim">
@@ -507,7 +510,7 @@ export function LibraryClient({ initialItems }: { initialItems: BrainItem[] }) {
                           value={bulkFolderTarget}
                           onChange={(e) => setBulkFolderTarget(e.target.value)}
                           disabled={bulkBusy}
-                          className="border border-border bg-bg px-2 py-1 disabled:opacity-50"
+                          className="field px-2 py-1"
                         >
                           <option value="">move to…</option>
                           {folders.map((folder) => (

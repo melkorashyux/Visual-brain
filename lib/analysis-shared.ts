@@ -9,6 +9,25 @@ import type { AnalysisResult } from "@/lib/types";
 export const FALLBACK_CATEGORY: (typeof CATEGORIES)[number] = CATEGORIES[0];
 
 /**
+ * True when the category is just FALLBACK_CATEGORY on an item nothing else
+ * has filled in yet (added without AI, or analysis failed) — it's a
+ * placeholder, not a real label, so the UI hides it outside edit mode.
+ */
+export function hasPlaceholderCategory(item: {
+  category: string;
+  tags: string[];
+  description: string;
+  design_notes: string;
+}): boolean {
+  return (
+    item.category === FALLBACK_CATEGORY &&
+    item.tags.length === 0 &&
+    !item.description &&
+    !item.design_notes
+  );
+}
+
+/**
  * Builds the system prompt with the current allowed categories and tags
  * spelled out explicitly, since both are closed lists the model must pick
  * from rather than invent. `allowedTags` is read fresh from the tags table

@@ -50,6 +50,9 @@ export function SettingsClient() {
   const [hexInput, setHexInput] = useState(DEFAULT_ACCENT);
   const [headerSizeId, setHeaderSizeId] = useState(DEFAULT_HEADER_SIZE_ID);
 
+  const [extensionToken, setExtensionToken] = useState("");
+  const [tokenStatus, setTokenStatus] = useState<"idle" | "copied" | "regenerated" | "error">("idle");
+
   useEffect(() => {
     fetch("/api/settings")
       .then((res) => res.json())
@@ -63,6 +66,11 @@ export function SettingsClient() {
         setLoaded(true);
       })
       .catch(() => setLoaded(true));
+
+    fetch("/api/extension-token")
+      .then((res) => res.json())
+      .then((data: { token?: string }) => setExtensionToken(data.token ?? ""))
+      .catch(() => {});
   }, []);
 
   // localStorage isn't available during SSR, so state starts at the defaults
@@ -106,6 +114,35 @@ export function SettingsClient() {
       setTimeout(() => setStatus("idle"), 2000);
     } catch {
       setStatus("error");
+    }
+  }
+
+  function flashTokenStatus(next: "copied" | "regenerated" | "error") {
+    setTokenStatus(next);
+    setTimeout(() => setTokenStatus("idle"), 2000);
+  }
+
+  async function copyToken() {
+    try {
+      await navigator.clipboard.writeText(extensionToken);
+      flashTokenStatus("copied");
+    } catch {
+      flashTokenStatus("error");
+    }
+  }
+
+  async function regenerateToken() {
+    if (!confirm("Generate a new token? The extension will stop working until you paste the new one into it.")) {
+      return;
+    }
+    try {
+      const res = await fetch("/api/extension-token", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setExtensionToken(data.token);
+      flashTokenStatus("regenerated");
+    } catch {
+      flashTokenStatus("error");
     }
   }
 
@@ -202,7 +239,7 @@ export function SettingsClient() {
               value={apiKeyInput}
               onChange={(e) => setApiKeyInput(e.target.value)}
               placeholder={keySet ? maskedKey : "sk-ant-..."}
-              className="w-full max-w-md border-b border-border pb-1.5 placeholder:text-dim"
+              className="field w-full max-w-md px-2.5 py-1.5"
               autoComplete="off"
             />
             <p className="mt-2 text-[11px] text-dim">
@@ -216,7 +253,7 @@ export function SettingsClient() {
               type="text"
               value={analysisModel}
               onChange={(e) => setAnalysisModel(e.target.value)}
-              className="w-full max-w-md border-b border-border pb-1.5"
+              className="field w-full max-w-md px-2.5 py-1.5"
             />
           </section>
         )}
@@ -228,7 +265,7 @@ export function SettingsClient() {
               type="text"
               value={ollamaHost}
               onChange={(e) => setOllamaHost(e.target.value)}
-              className="w-full max-w-md border-b border-border pb-1.5"
+              className="field w-full max-w-md px-2.5 py-1.5"
             />
 
             <p className="tracked-label mb-3 mt-6 text-dim">Model</p>
@@ -236,7 +273,7 @@ export function SettingsClient() {
               type="text"
               value={ollamaModel}
               onChange={(e) => setOllamaModel(e.target.value)}
-              className="w-full max-w-md border-b border-border pb-1.5"
+              className="field w-full max-w-md px-2.5 py-1.5"
             />
             <p className="mt-2 text-[11px] text-dim">
               Requires Ollama running locally with this model pulled.
@@ -258,6 +295,42 @@ export function SettingsClient() {
           )}
         </div>
       </div>
+
+      <GroupHeading>Chrome Extension</GroupHeading>
+
+      <p className="mt-3 max-w-lg text-muted">
+        Copy this token, open the Save to Visual Brain extension&apos;s popup, paste it into
+        Visual Brain Token, then click Test Connection. It&apos;s unique to this install.
+      </p>
+
+      <section className="mt-8 max-w-[900px]">
+        <p className="tracked-label mb-3 text-dim">Extension Token</p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <code className="field w-full max-w-md truncate px-2.5 py-1.5 text-[13px]">
+            {extensionToken || "…"}
+          </code>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={copyToken}
+              disabled={!extensionToken}
+              className="tracked-label border border-accent bg-accent px-4 py-2 text-bg disabled:opacity-50"
+            >
+              copy
+            </button>
+            <button
+              onClick={regenerateToken}
+              className="tracked-label border border-border px-4 py-2 text-dim transition-colors duration-150 hover:text-text"
+            >
+              regenerate
+            </button>
+            {tokenStatus === "copied" && <span className="tracked-label text-accent">copied</span>}
+            {tokenStatus === "regenerated" && (
+              <span className="tracked-label text-accent">new token — paste it into the extension</span>
+            )}
+            {tokenStatus === "error" && <span className="tracked-label text-red-500">failed</span>}
+          </div>
+        </div>
+      </section>
 
       <GroupHeading>Developer</GroupHeading>
 
@@ -320,7 +393,7 @@ export function SettingsClient() {
                 type="color"
                 value={isValidHex(hexInput) ? hexInput : DEFAULT_ACCENT}
                 onChange={(e) => pickAccent(e.target.value)}
-                className="h-9 w-9 cursor-pointer border border-border bg-transparent p-0"
+                className="h-9 w-9 cursor-pointer border border-border-strong bg-transparent p-0"
               />
               <input
                 type="text"
@@ -331,7 +404,7 @@ export function SettingsClient() {
                   if (isValidHex(value)) pickAccent(value);
                 }}
                 placeholder="#custom"
-                className="w-28 border-b border-border pb-1 placeholder:text-dim"
+                className="field w-28 px-2 py-1.5"
               />
             </div>
           </section>
@@ -401,7 +474,7 @@ export function SettingsClient() {
                 Secondary
               </button>
             </div>
-            <div className="flex items-center gap-2 border-b border-border pb-2">
+            <div className="field flex items-center gap-2 px-3 py-2">
               <span className="text-dim">/</span>
               <span className="text-dim">search preview...</span>
             </div>

@@ -1,8 +1,8 @@
 // Next's standalone output (.next/standalone) doesn't include the static
-// assets, public folder, or .env files by design — copy them in so the
-// bundled server can serve the app on its own, with no other files from the
-// repo needed. Without .env.local, the packaged server boots with no
-// VISUAL_BRAIN_TOKEN/ANTHROPIC_API_KEY/etc. and every protected route 500s.
+// assets or public folder by design — copy them in so the bundled server can
+// serve the app on its own, with no other files from the repo needed.
+// Per-install secrets (the extension token, the Anthropic key) are created
+// or entered at runtime and live in the data dir, never in the build.
 const fs = require("fs");
 const path = require("path");
 
@@ -25,11 +25,4 @@ fs.cpSync(
   { recursive: true }
 );
 
-const envLocal = path.join(root, ".env.local");
-if (fs.existsSync(envLocal)) {
-  fs.cpSync(envLocal, path.join(standalone, ".env.local"));
-} else {
-  console.warn("No .env.local found at repo root — packaged app will boot with no env vars set.");
-}
-
-console.log("Copied public/, .next/static, and .env.local into .next/standalone");
+console.log("Copied public/ and .next/static into .next/standalone");

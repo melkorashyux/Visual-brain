@@ -100,7 +100,7 @@ export function FolderSidebar({
                   if (e.key === "Enter") submitRename(folder.id);
                   if (e.key === "Escape") setRenamingId(null);
                 }}
-                className="w-full border-b border-accent px-2 py-1.5"
+                className="field w-full px-2 py-1.5"
               />
             ) : (
               <>
@@ -141,7 +141,7 @@ export function FolderSidebar({
             if (e.key === "Escape") setCreating(false);
           }}
           placeholder="folder name"
-          className="mt-2 w-full border-b border-accent px-2 py-1.5 placeholder:text-dim"
+          className="field mt-2 w-full px-2 py-1.5"
         />
       ) : (
         <button

@@ -1,6 +1,7 @@
 "use client";
 
 import type { BrainItem } from "@/lib/types";
+import { hasPlaceholderCategory } from "@/lib/analysis-shared";
 
 export function ItemCard({
   item,
@@ -108,7 +109,9 @@ export function ItemCard({
             </div>
           ) : (
             <>
-              <p className="tracked-label text-dim">{item.category}</p>
+              {!hasPlaceholderCategory(item) && (
+                <p className="tracked-label text-dim">{item.category}</p>
+              )}
               {item.tags.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {item.tags.slice(0, 3).map((tag) => (

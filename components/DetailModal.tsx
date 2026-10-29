@@ -3,12 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { CATEGORIES, UNSORTED_FOLDER_NAME, type Folder, type BrainItem } from "@/lib/types";
 import { matchAllowed } from "@/lib/tags";
+import { hasPlaceholderCategory } from "@/lib/analysis-shared";
 import { ColorSwatch } from "@/components/ColorSwatch";
 import { ExportToast } from "@/components/ExportToast";
 import { ExpandIcon } from "@/components/ItemCard";
 import { Lightbox } from "@/components/Lightbox";
 import { exportForClaude, type ExportResult } from "@/lib/exportClient";
 import { addTagsApi } from "@/lib/tagsClient";
+import { formatDateTime } from "@/lib/format";
 
 interface Draft {
   title: string;
@@ -21,6 +23,9 @@ interface Draft {
   layout: string;
   source_url: string;
 }
+
+// Edit-mode inputs — the shared .field look (see globals.css), full width.
+const FIELD_CLASS = "field w-full px-2.5 py-1.5";
 
 function toDraft(item: BrainItem): Draft {
   return {
@@ -215,6 +220,10 @@ export function DetailModal({
     setTagInput("");
   }
 
+  function removeTag(tag: string) {
+    setDraft((d) => ({ ...d, tags: d.tags.filter((t) => t !== tag) }));
+  }
+
   function addColor() {
     const value = colorInput.trim();
     if (/^#[0-9a-fA-F]{3,8}$/.test(value) && !draft.colors.includes(value)) {
@@ -222,6 +231,18 @@ export function DetailModal({
     }
     setColorInput("");
   }
+
+  // Outside edit mode, fields with nothing in them are hidden instead of
+  // showing "—" (an image added without AI would otherwise be a column of
+  // empty labels). Edit mode shows every field so the user can fill them in.
+  const show = (hasValue: boolean) => editing || hasValue;
+  const hasDetails =
+    item.tags.length > 0 ||
+    !!item.description ||
+    !!item.design_notes ||
+    item.colors.length > 0 ||
+    !!item.typography ||
+    !!item.layout;
 
   return (
     <div
@@ -257,7 +278,8 @@ export function DetailModal({
               <input
                 value={draft.title}
                 onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
-                className="page-heading w-full border-b border-border pb-1"
+                aria-label="Title"
+                className="field page-heading w-full px-2.5 py-1"
               />
             ) : (
               <h2 className="page-heading">{item.title}</h2>
@@ -318,30 +340,32 @@ export function DetailModal({
 
           <div className="min-h-0 flex-1 overflow-y-auto">
             <div className="flex flex-col gap-6 p-4">
-            <Field label="Category">
-              {editing ? (
-                <select
-                  value={draft.category}
-                  onChange={(e) => setDraft((d) => ({ ...d, category: e.target.value }))}
-                  className="border border-border bg-surface px-2 py-1"
-                >
-                  {CATEGORIES.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <p className="tracked-label text-muted">{item.category}</p>
-              )}
-            </Field>
+            {show(!hasPlaceholderCategory(item)) && (
+              <Field label="Category">
+                {editing ? (
+                  <select
+                    value={draft.category}
+                    onChange={(e) => setDraft((d) => ({ ...d, category: e.target.value }))}
+                    className={FIELD_CLASS}
+                  >
+                    {CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="tracked-label text-muted">{item.category}</p>
+                )}
+              </Field>
+            )}
 
             <Field label="Folder">
               <select
                 value={item.folder_id ?? ""}
                 onChange={(e) => moveToFolder(e.target.value)}
                 disabled={movingFolder || folders.length === 0}
-                className="border border-border bg-surface px-2 py-1 disabled:opacity-50"
+                className={FIELD_CLASS}
               >
                 {folders.map((folder) => (
                   <option key={folder.id} value={folder.id}>
@@ -351,155 +375,155 @@ export function DetailModal({
               </select>
             </Field>
 
-            <Field label="Tags">
-              <div className="flex flex-wrap gap-1.5">
-                {draft.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="tracked-label inline-flex items-center gap-1.5 border border-border px-2 py-1 text-muted"
-                  >
-                    {tag}
-                    {editing && (
-                      <button
-                        onClick={() =>
-                          setDraft((d) => ({ ...d, tags: d.tags.filter((t) => t !== tag) }))
-                        }
-                        title="Remove tag"
-                        aria-label={`Remove tag ${tag}`}
-                        className="text-dim hover:text-accent"
+            {show(item.tags.length > 0) && (
+              <Field label="Tags">
+                {editing ? (
+                  <TagEditor
+                    tags={draft.tags}
+                    input={tagInput}
+                    onInputChange={setTagInput}
+                    onAdd={addTag}
+                    onRemove={removeTag}
+                  />
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {item.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="tracked-label border border-border-strong px-2 py-1 text-text"
                       >
-                        ×
-                      </button>
-                    )}
-                  </span>
-                ))}
-              </div>
-              {editing && (
-                <input
-                  value={tagInput}
-                  onChange={(e) => setTagInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addTag();
-                    }
-                  }}
-                  placeholder="add tag + enter"
-                  className="mt-2 w-full border-b border-border pb-1 placeholder:text-dim"
-                />
-              )}
-            </Field>
-
-            <Field label="Description">
-              {editing ? (
-                <textarea
-                  value={draft.description}
-                  onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
-                  rows={3}
-                  className="w-full resize-none border border-border bg-surface p-2"
-                />
-              ) : (
-                <p className="text-muted">{item.description || "—"}</p>
-              )}
-            </Field>
-
-            <Field label="Design Notes">
-              {editing ? (
-                <textarea
-                  value={draft.design_notes}
-                  onChange={(e) => setDraft((d) => ({ ...d, design_notes: e.target.value }))}
-                  rows={3}
-                  className="w-full resize-none border border-border bg-surface p-2"
-                />
-              ) : (
-                <p className="text-muted">{item.design_notes || "—"}</p>
-              )}
-            </Field>
-
-            <Field label="Colors">
-              <div className="flex flex-wrap gap-3">
-                {draft.colors.map((hex) => (
-                  <div key={hex} className="relative">
-                    <ColorSwatch hex={hex} />
-                    {editing && (
-                      <button
-                        onClick={() =>
-                          setDraft((d) => ({ ...d, colors: d.colors.filter((c) => c !== hex) }))
-                        }
-                        title="Remove color"
-                        aria-label={`Remove color ${hex}`}
-                        className="absolute -right-1.5 -top-1.5 h-4 w-4 border border-border bg-surface text-[10px] leading-none text-dim hover:text-accent"
-                      >
-                        ×
-                      </button>
-                    )}
+                        {tag}
+                      </span>
+                    ))}
                   </div>
-                ))}
-              </div>
-              {editing && (
-                <input
-                  value={colorInput}
-                  onChange={(e) => setColorInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addColor();
-                    }
-                  }}
-                  placeholder="#hex + enter"
-                  className="mt-2 w-full border-b border-border pb-1 placeholder:text-dim"
-                />
-              )}
-            </Field>
+                )}
+              </Field>
+            )}
 
-            <Field label="Typography">
-              {editing ? (
-                <input
-                  value={draft.typography}
-                  onChange={(e) => setDraft((d) => ({ ...d, typography: e.target.value }))}
-                  className="w-full border-b border-border pb-1"
-                />
-              ) : (
-                <p className="text-muted">{item.typography || "—"}</p>
-              )}
-            </Field>
+            {show(!!item.description) && (
+              <Field label="Description">
+                {editing ? (
+                  <textarea
+                    value={draft.description}
+                    onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
+                    rows={3}
+                    className={`${FIELD_CLASS} resize-none`}
+                  />
+                ) : (
+                  <p className="text-muted">{item.description}</p>
+                )}
+              </Field>
+            )}
 
-            <Field label="Layout">
-              {editing ? (
-                <input
-                  value={draft.layout}
-                  onChange={(e) => setDraft((d) => ({ ...d, layout: e.target.value }))}
-                  className="w-full border-b border-border pb-1"
-                />
-              ) : (
-                <p className="text-muted">{item.layout || "—"}</p>
-              )}
-            </Field>
+            {show(!!item.design_notes) && (
+              <Field label="Design Notes">
+                {editing ? (
+                  <textarea
+                    value={draft.design_notes}
+                    onChange={(e) => setDraft((d) => ({ ...d, design_notes: e.target.value }))}
+                    rows={3}
+                    className={`${FIELD_CLASS} resize-none`}
+                  />
+                ) : (
+                  <p className="text-muted">{item.design_notes}</p>
+                )}
+              </Field>
+            )}
 
-            <Field label="Source URL">
-              {editing ? (
-                <input
-                  value={draft.source_url}
-                  onChange={(e) => setDraft((d) => ({ ...d, source_url: e.target.value }))}
-                  placeholder="https://…"
-                  className="w-full border-b border-border pb-1 placeholder:text-dim"
-                />
-              ) : item.source_url ? (
-                <a
-                  href={item.source_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-accent hover:underline"
-                >
-                  {item.source_url}
-                </a>
-              ) : (
-                <p className="text-muted">—</p>
-              )}
-            </Field>
+            {show(item.colors.length > 0) && (
+              <Field label="Colors">
+                {draft.colors.length > 0 && (
+                  <div className="flex flex-wrap gap-3">
+                    {draft.colors.map((hex) => (
+                      <div key={hex} className="relative">
+                        <ColorSwatch hex={hex} />
+                        {editing && (
+                          <button
+                            onClick={() =>
+                              setDraft((d) => ({ ...d, colors: d.colors.filter((c) => c !== hex) }))
+                            }
+                            title="Remove color"
+                            aria-label={`Remove color ${hex}`}
+                            className="absolute -right-1.5 -top-1.5 h-4 w-4 border border-border-strong bg-surface text-[10px] leading-none text-muted hover:text-accent"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {editing && (
+                  <AddRow
+                    value={colorInput}
+                    onChange={setColorInput}
+                    onAdd={addColor}
+                    placeholder="#hex, e.g. #b9f73e"
+                    label="Add color"
+                  />
+                )}
+              </Field>
+            )}
+
+            {show(!!item.typography) && (
+              <Field label="Typography">
+                {editing ? (
+                  <input
+                    value={draft.typography}
+                    onChange={(e) => setDraft((d) => ({ ...d, typography: e.target.value }))}
+                    className={FIELD_CLASS}
+                  />
+                ) : (
+                  <p className="text-muted">{item.typography}</p>
+                )}
+              </Field>
+            )}
+
+            {show(!!item.layout) && (
+              <Field label="Layout">
+                {editing ? (
+                  <input
+                    value={draft.layout}
+                    onChange={(e) => setDraft((d) => ({ ...d, layout: e.target.value }))}
+                    className={FIELD_CLASS}
+                  />
+                ) : (
+                  <p className="text-muted">{item.layout}</p>
+                )}
+              </Field>
+            )}
+
+            {show(!!item.source_url) && (
+              <Field label="Source URL">
+                {editing ? (
+                  <input
+                    value={draft.source_url}
+                    onChange={(e) => setDraft((d) => ({ ...d, source_url: e.target.value }))}
+                    placeholder="https://…"
+                    className={FIELD_CLASS}
+                  />
+                ) : (
+                  <a
+                    href={item.source_url!}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="break-all text-accent hover:underline"
+                  >
+                    {item.source_url}
+                  </a>
+                )}
+              </Field>
+            )}
+
+            {!editing && !hasDetails && (
+              <p className="text-[12px] text-muted">
+                No tags or notes yet. Click <span className="text-text">edit</span> to add your
+                own, or <span className="text-text">analyze with ai</span> below.
+              </p>
+            )}
 
             <Field label="Added">
-              <p className="text-dim">{new Date(item.created_at).toLocaleDateString()}</p>
+              <p className="text-dim">{formatDateTime(item.created_at)}</p>
             </Field>
             </div>
           </div>
@@ -557,5 +581,121 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <p className="tracked-label text-dim">{label}</p>
       {children}
     </div>
+  );
+}
+
+/**
+ * Tags as chips inside one bordered field, with the text input inline after
+ * them — the whole box reads as a single control. Enter or comma adds the
+ * typed tag, Backspace on an empty input removes the last chip.
+ */
+function TagEditor({
+  tags,
+  input,
+  onInputChange,
+  onAdd,
+  onRemove,
+}: {
+  tags: string[];
+  input: string;
+  onInputChange: (value: string) => void;
+  onAdd: () => void;
+  onRemove: (tag: string) => void;
+}) {
+  return (
+    <div>
+      <div className="field flex flex-wrap items-center gap-1.5 p-1.5">
+        {tags.map((tag) => (
+          <span
+            key={tag}
+            className="tracked-label inline-flex items-center gap-1.5 border border-border-strong bg-surface-hover py-1 pl-2 pr-1 text-text"
+          >
+            {tag}
+            <button
+              onClick={() => onRemove(tag)}
+              title="Remove tag"
+              aria-label={`Remove tag ${tag}`}
+              className="px-1 text-muted hover:text-accent"
+            >
+              ×
+            </button>
+          </span>
+        ))}
+        <input
+          value={input}
+          onChange={(e) => onInputChange(e.target.value.replace(",", ""))}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === ",") {
+              e.preventDefault();
+              onAdd();
+            } else if (e.key === "Backspace" && !input && tags.length > 0) {
+              onRemove(tags[tags.length - 1]);
+            }
+          }}
+          aria-label="Add tag"
+          placeholder={tags.length > 0 ? "add another…" : "type a tag…"}
+          className="min-w-[120px] flex-1 px-1 py-1"
+        />
+        {input.trim() && (
+          <button
+            onClick={onAdd}
+            className="tracked-label border border-accent px-2 py-1 text-accent hover:bg-accent hover:text-bg"
+          >
+            add
+          </button>
+        )}
+      </div>
+      <p className="mt-1.5 text-[11px] text-muted">
+        Press <Key>Enter</Key> to add · <Key>Backspace</Key> removes the last tag
+      </p>
+    </div>
+  );
+}
+
+/** A single-value input with an explicit add button, for list fields like colors. */
+function AddRow({
+  value,
+  onChange,
+  onAdd,
+  placeholder,
+  label,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  onAdd: () => void;
+  placeholder: string;
+  label: string;
+}) {
+  return (
+    <div className="flex gap-2">
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            onAdd();
+          }
+        }}
+        aria-label={label}
+        placeholder={placeholder}
+        className={FIELD_CLASS}
+      />
+      <button
+        onClick={onAdd}
+        disabled={!value.trim()}
+        className="tracked-label shrink-0 border border-accent px-3 text-accent hover:bg-accent hover:text-bg disabled:border-border-strong disabled:text-dim disabled:hover:bg-transparent"
+      >
+        add
+      </button>
+    </div>
+  );
+}
+
+function Key({ children }: { children: React.ReactNode }) {
+  return (
+    <kbd className="border border-border-strong px-1 font-[inherit] text-[10px] text-text">
+      {children}
+    </kbd>
   );
 }

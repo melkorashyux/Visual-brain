@@ -31,6 +31,8 @@ testBtn.addEventListener("click", async () => {
   statusEl.className = "";
   try {
     const folders = await fetchFolders();
+    brainUrlInput.value = (await getSettings()).brainUrl; // may have been rediscovered
+    chrome.runtime.sendMessage({ type: "rebuild-menu" });
     statusEl.textContent = `Connected — ${folders.length} folder${folders.length === 1 ? "" : "s"} found`;
     statusEl.className = "ok";
   } catch (err) {

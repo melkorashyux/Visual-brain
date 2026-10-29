@@ -5,6 +5,10 @@
   --color-surface: #141414;
   --color-surface-hover: #1a1a1a;
   --color-border: #262626;
+  /* Edit-mode fields and chips. --color-border is ~1.3:1 against
+     --color-surface — fine for dividers, too faint to show where an input
+     is. This clears the 3:1 non-text contrast floor for UI boundaries. */
+  --color-border-strong: #6b6b6b;
   --color-text: #ededed;
   --color-muted: #8a8a8a;
   /* #5a5a5a read ~2.9:1 against --color-bg, well under the 4.5:1 AA floor for
@@ -23,6 +27,7 @@
   --color-surface: var(--color-surface);
   --color-surface-hover: var(--color-surface-hover);
   --color-border: var(--color-border);
+  --color-border-strong: var(--color-border-strong);
   --color-text: var(--color-text);
   --color-muted: var(--color-muted);
   --color-dim: var(--color-dim);
@@ -121,6 +126,26 @@ select {
   font-size: inherit;
   color: inherit;
   outline: none;
+}
+
+/* Every text input, select and textarea. Unlayered so it beats the input
+   reset above; it deliberately sets no size or padding, so Tailwind
+   utilities on each field still control those. */
+.field {
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-bg);
+  transition: border-color 150ms;
+}
+.field::placeholder,
+.field input::placeholder {
+  color: var(--color-dim);
+}
+.field:focus,
+.field:focus-within {
+  border-color: var(--color-accent);
+}
+.field:disabled {
+  opacity: 0.5;
 }
 
 ::-webkit-scrollbar {

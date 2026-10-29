@@ -36,8 +36,7 @@ yarn-error.log*
 # local sqlite db + uploaded screenshots
 /data/visual-brain.db
 /data/visual-brain.db-*
-/data/uploads/*
-!/data/uploads/__placeholder-*.svg
+/data/uploads/
 /data/exports/
 
 # per-install settings (holds the Anthropic API key)

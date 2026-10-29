@@ -24,10 +24,8 @@ let cached: BrainSettings | null = null;
 
 /**
  * Local per-install settings (analysis provider, API key, model). Backed by
- * a JSON file in data/ rather than .env.local, since packaged desktop builds
- * ship without .env.local — each install's key lives only on that machine.
- * Falls back to env vars on first read so an existing dev .env.local still
- * works without visiting the settings screen.
+ * a JSON file in the data dir, so each install's key lives only on that
+ * machine. Until something is saved, defaults come from env vars if set.
  */
 export function getSettings(): BrainSettings {
   if (cached) return cached;

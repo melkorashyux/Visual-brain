@@ -12,22 +12,11 @@ import {
   type BrainItemRow,
 } from "@/lib/types";
 import { migrateTaxonomy } from "@/lib/taxonomyMigration";
-import { DATA_DIR, UPLOADS_DIR, BUNDLED_UPLOADS_DIR } from "@/lib/paths";
+import { DATA_DIR, UPLOADS_DIR } from "@/lib/paths";
 
 const DB_PATH = path.join(DATA_DIR, "visual-brain.db");
 
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-
-// The seed items reference placeholder SVGs that ship in the bundle; copy
-// them into the data dir when it lives elsewhere (the packaged app).
-if (UPLOADS_DIR !== BUNDLED_UPLOADS_DIR && fs.existsSync(BUNDLED_UPLOADS_DIR)) {
-  for (const name of fs.readdirSync(BUNDLED_UPLOADS_DIR)) {
-    const dest = path.join(UPLOADS_DIR, name);
-    if (name.startsWith("__placeholder") && !fs.existsSync(dest)) {
-      fs.copyFileSync(path.join(BUNDLED_UPLOADS_DIR, name), dest);
-    }
-  }
-}
 
 declare global {
   var __brainDb: Database.Database | undefined;
@@ -74,7 +63,7 @@ function createConnection() {
   const unsortedId = ensureUnsortedFolder(db);
   db.prepare("UPDATE items SET folder_id = ? WHERE folder_id IS NULL").run(unsortedId);
 
-  seedIfEmpty(db, unsortedId);
+  removeSampleItems(db);
   seedTagsIfEmpty(db);
   migrateTaxonomy(db);
 
@@ -112,75 +101,19 @@ function ensureUnsortedFolder(db: Database.Database): string {
   return id;
 }
 
-function seedIfEmpty(db: Database.Database, unsortedId: string) {
-  const { count } = db.prepare("SELECT COUNT(*) as count FROM items").get() as {
-    count: number;
-  };
-  if (count > 0) return;
+// Older versions filled a new library with three sample items backed by
+// bundled "__placeholder-N.svg" files. A new library now starts empty;
+// this clears those samples out of libraries created before that.
+function removeSampleItems(db: Database.Database) {
+  const samples = db
+    .prepare("SELECT filename FROM items WHERE filename LIKE '__placeholder-%'")
+    .all() as { filename: string }[];
+  if (samples.length === 0) return;
 
-  const insert = db.prepare(`
-    INSERT INTO items (id, filename, title, category, tags, description, design_notes, colors, typography, layout, source_url, folder_id, created_at)
-    VALUES (@id, @filename, @title, @category, @tags, @description, @design_notes, @colors, @typography, @layout, @source_url, @folder_id, @created_at)
-  `);
-
-  const seedRows = [
-    {
-      id: randomUUID(),
-      filename: "__placeholder-1.svg",
-      title: "Brutalist Studio Landing",
-      category: "Landing Page",
-      tags: JSON.stringify(["brutalist", "monospace", "dark mode", "high contrast", "hero", "grid"]),
-      description:
-        "A stark, text-driven landing page for a design studio, built almost entirely from monospace type and hairline rules on black.",
-      design_notes:
-        "Worth saving for how little it leans on imagery — the typographic hierarchy alone carries the hero. Good reference for instrument-panel UI energy applied to marketing.",
-      colors: JSON.stringify(["#0A0A0A", "#EDEDED", "#B9F73E", "#262626"]),
-      typography: "Monospace, uppercase, wide tracking",
-      layout: "Full-bleed hero, minimal top nav",
-      source_url: null,
-      folder_id: unsortedId,
-      created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(),
-    },
-    {
-      id: randomUUID(),
-      filename: "__placeholder-2.svg",
-      title: "Analytics Dashboard Dark",
-      category: "Dashboard / App UI",
-      tags: JSON.stringify(["dark mode", "grid", "card grid", "minimal", "data viz", "sidebar"]),
-      description:
-        "A dense analytics dashboard with a fixed sidebar, stat cards, and a line chart, all in a restrained dark palette.",
-      design_notes:
-        "Good reference for information density done cleanly — generous internal padding and a strict 8px grid keep it from feeling cluttered despite the amount of data.",
-      colors: JSON.stringify(["#141414", "#EDEDED", "#8A8A8A", "#3B82F6"]),
-      typography: "Grotesque sans, tabular numerals for stats",
-      layout: "Sidebar nav, stat card row, chart below",
-      source_url: null,
-      folder_id: unsortedId,
-      created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(),
-    },
-    {
-      id: randomUUID(),
-      filename: "__placeholder-3.svg",
-      title: "Editorial Serif Portfolio",
-      category: "Portfolio",
-      tags: JSON.stringify(["editorial", "serif", "minimal", "grid", "maximalist type"]),
-      description:
-        "A photographer's portfolio using a large serif display face and a strict editorial grid reminiscent of print magazine layouts.",
-      design_notes:
-        "Notable for oversized type used as a graphic element, not just a label. The generous whitespace and asymmetric grid keep the images as the focal point.",
-      colors: JSON.stringify(["#FDFCF9", "#111111", "#C4A265"]),
-      typography: "Serif display, small caps for captions",
-      layout: "Asymmetric editorial grid, full-bleed images",
-      source_url: null,
-      folder_id: unsortedId,
-      created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-    },
-  ];
-
-  const insertMany = db.transaction((rows: typeof seedRows) => {
-    for (const row of rows) insert.run(row);
-  });
-  insertMany(seedRows);
+  db.prepare("DELETE FROM items WHERE filename LIKE '__placeholder-%'").run();
+  for (const { filename } of samples) {
+    fs.rm(path.join(UPLOADS_DIR, filename), { force: true }, () => {});
+  }
 }
 
 function seedTagsIfEmpty(db: Database.Database) {
@@ -426,10 +359,7 @@ export function deleteItem(id: string): boolean {
 
   getDb().prepare("DELETE FROM items WHERE id = ?").run(id);
 
-  if (!item.filename.startsWith("__placeholder")) {
-    const filePath = path.join(UPLOADS_DIR, item.filename);
-    fs.rm(filePath, { force: true }, () => {});
-  }
+  fs.rm(path.join(UPLOADS_DIR, item.filename), { force: true }, () => {});
 
   return true;
 }
