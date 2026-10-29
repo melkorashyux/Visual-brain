@@ -35,8 +35,12 @@
   --font-mono: var(--font-mono);
 }
 
-* {
-  border-color: var(--color-border);
+/* In the base layer so border-color utilities (border-accent,
+   border-border-strong, …) can override it — unlayered, it beat them all. */
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
 }
 
 /* Higher specificity than the `outline: none` reset below, so this wins

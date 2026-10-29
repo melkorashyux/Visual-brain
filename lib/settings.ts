@@ -5,11 +5,14 @@ import { DATA_DIR } from "@/lib/paths";
 const SETTINGS_PATH = path.join(DATA_DIR, "settings.json");
 
 export interface BrainSettings {
-  analysisProvider: "anthropic" | "ollama";
+  /** "none": images are saved without any AI analysis. */
+  analysisProvider: "anthropic" | "ollama" | "none";
   anthropicApiKey: string;
   analysisModel: string;
   ollamaHost: string;
   ollamaModel: string;
+  /** Set once the first-launch setup screen is finished or skipped. */
+  setupComplete: boolean;
 }
 
 const DEFAULTS: BrainSettings = {
@@ -18,9 +21,14 @@ const DEFAULTS: BrainSettings = {
   analysisModel: process.env.ANALYSIS_MODEL || "claude-sonnet-5",
   ollamaHost: process.env.OLLAMA_HOST || "http://localhost:11434",
   ollamaModel: process.env.OLLAMA_MODEL || "gemma3:4b",
+  setupComplete: false,
 };
 
-let cached: BrainSettings | null = null;
+// Cached per file mtime, not just once: Next bundles each page and API route
+// separately, so each has its own copy of this module. A plain once-only
+// cache meant a save from /api/settings never reached the others (the home
+// page kept redirecting to /setup; uploads kept the old provider).
+let cached: { mtimeMs: number; settings: BrainSettings } | null = null;
 
 /**
  * Local per-install settings (analysis provider, API key, model). Backed by
@@ -28,26 +36,26 @@ let cached: BrainSettings | null = null;
  * machine. Until something is saved, defaults come from env vars if set.
  */
 export function getSettings(): BrainSettings {
-  if (cached) return cached;
-
-  if (fs.existsSync(SETTINGS_PATH)) {
-    try {
-      const saved = JSON.parse(fs.readFileSync(SETTINGS_PATH, "utf-8"));
-      cached = { ...DEFAULTS, ...saved };
-      return cached!;
-    } catch {
-      // fall through to defaults on a corrupt file
-    }
+  let mtimeMs: number;
+  try {
+    mtimeMs = fs.statSync(SETTINGS_PATH).mtimeMs;
+  } catch {
+    return DEFAULTS;
   }
+  if (cached?.mtimeMs === mtimeMs) return cached.settings;
 
-  cached = DEFAULTS;
-  return cached;
+  try {
+    const saved = JSON.parse(fs.readFileSync(SETTINGS_PATH, "utf-8"));
+    cached = { mtimeMs, settings: { ...DEFAULTS, ...saved } };
+    return cached.settings;
+  } catch {
+    return DEFAULTS; // corrupt file
+  }
 }
 
 export function saveSettings(partial: Partial<BrainSettings>): BrainSettings {
   const next = { ...getSettings(), ...partial };
   fs.mkdirSync(DATA_DIR, { recursive: true });
   fs.writeFileSync(SETTINGS_PATH, JSON.stringify(next, null, 2));
-  cached = next;
   return next;
 }

@@ -5,6 +5,7 @@ import { after } from "next/server";
 import { createItem, updateItem } from "@/lib/db";
 import { analyzeScreenshot } from "@/lib/analysis";
 import { FALLBACK_CATEGORY } from "@/lib/analysis-shared";
+import { getSettings } from "@/lib/settings";
 import type { BrainItem } from "@/lib/types";
 import { UPLOADS_DIR } from "@/lib/paths";
 
@@ -41,6 +42,9 @@ export async function saveAndAnalyze(input: SaveAndAnalyzeInput): Promise<BrainI
   const filename = `${randomUUID()}${ext}`;
   await fs.writeFile(path.join(UPLOADS_DIR, filename), input.buffer);
 
+  // With AI analysis off there's nothing to wait for — the item is final as saved.
+  const analyze = getSettings().analysisProvider !== "none";
+
   const item = createItem({
     filename,
     title: input.fallbackTitle,
@@ -53,8 +57,9 @@ export async function saveAndAnalyze(input: SaveAndAnalyzeInput): Promise<BrainI
     layout: "",
     source_url: input.sourceUrl ?? null,
     folder_id: input.folderId ?? null,
-    analysis_status: "pending",
+    analysis_status: analyze ? "pending" : "complete",
   });
+  if (!analyze) return item;
 
   const imageBase64 = input.buffer.toString("base64");
   after(async () => {

@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
 
   const partial: Partial<BrainSettings> = {};
 
-  if (body.analysisProvider === "anthropic" || body.analysisProvider === "ollama") {
+  if (["anthropic", "ollama", "none"].includes(body.analysisProvider)) {
     partial.analysisProvider = body.analysisProvider;
   }
   if (typeof body.anthropicApiKey === "string" && !body.anthropicApiKey.includes("*")) {
@@ -40,6 +40,9 @@ export async function POST(req: NextRequest) {
   }
   if (typeof body.ollamaModel === "string" && body.ollamaModel.trim()) {
     partial.ollamaModel = body.ollamaModel.trim();
+  }
+  if (body.setupComplete === true) {
+    partial.setupComplete = true;
   }
 
   const settings = saveSettings(partial);

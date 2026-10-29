@@ -17,7 +17,7 @@ import {
 } from "@/lib/theme";
 
 interface SettingsResponse {
-  analysisProvider: "anthropic" | "ollama";
+  analysisProvider: "anthropic" | "ollama" | "none";
   anthropicApiKey: string; // masked
   anthropicApiKeySet: boolean;
   analysisModel: string;
@@ -36,7 +36,7 @@ function GroupHeading({ children }: { children: React.ReactNode }) {
 
 export function SettingsClient() {
   const [loaded, setLoaded] = useState(false);
-  const [provider, setProvider] = useState<"anthropic" | "ollama">("ollama");
+  const [provider, setProvider] = useState<"anthropic" | "ollama" | "none">("ollama");
   const [maskedKey, setMaskedKey] = useState("");
   const [keySet, setKeySet] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState("");
@@ -214,6 +214,7 @@ export function SettingsClient() {
               [
                 { id: "anthropic" as const, label: "Claude (Anthropic API)" },
                 { id: "ollama" as const, label: "Ollama (local model)" },
+                { id: "none" as const, label: "No AI analysis" },
               ]
             ).map((option) => (
               <button

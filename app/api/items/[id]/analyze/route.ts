@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import { getItem, updateItem } from "@/lib/db";
 import { analyzeScreenshot } from "@/lib/analysis";
 import { EXT_BY_MIME } from "@/lib/ingest";
+import { getSettings } from "@/lib/settings";
 import { UPLOADS_DIR } from "@/lib/paths";
 
 const MIME_BY_EXT: Record<string, string> = Object.fromEntries(
@@ -32,6 +33,13 @@ export async function POST(
     buffer = await fs.readFile(path.join(UPLOADS_DIR, item.filename));
   } catch {
     return NextResponse.json({ error: "Image file missing on disk" }, { status: 404 });
+  }
+
+  if (getSettings().analysisProvider === "none") {
+    return NextResponse.json(
+      { error: "AI analysis is off. Choose Claude or Ollama in Settings to use it." },
+      { status: 400 },
+    );
   }
 
   const imageBase64 = buffer.toString("base64");

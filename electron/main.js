@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require("electron");
+const { app, BrowserWindow, shell } = require("electron");
 const path = require("path");
 const http = require("http");
 const net = require("net");
@@ -117,6 +117,14 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
     },
+  });
+
+  // Links to other sites (an item's source URL, the Anthropic Console,
+  // the Ollama download page) open in the system browser, not a bare app
+  // window.
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//.test(url) && !url.startsWith(appUrl)) shell.openExternal(url);
+    return { action: "deny" };
   });
 
   mainWindow.loadURL(appUrl);
