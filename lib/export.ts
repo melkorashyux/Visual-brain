@@ -1,9 +1,7 @@
 import path from "node:path";
 import fs from "node:fs/promises";
 import { getItem } from "@/lib/db";
-
-const UPLOADS_DIR = path.join(process.cwd(), "data", "uploads");
-const EXPORTS_DIR = path.join(process.cwd(), "data", "exports");
+import { UPLOADS_DIR, EXPORTS_DIR } from "@/lib/paths";
 
 function slugify(text: string): string {
   const slug = text

@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import path from "node:path";
 import fs from "node:fs/promises";
 import sharp from "sharp";
+import { UPLOADS_DIR } from "@/lib/paths";
 
-const UPLOADS_DIR = path.join(process.cwd(), "data", "uploads");
 const THUMBS_DIR = path.join(UPLOADS_DIR, ".thumbs");
 
 const DEFAULT_WIDTH = 480;

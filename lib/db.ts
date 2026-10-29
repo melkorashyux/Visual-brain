@@ -12,15 +12,22 @@ import {
   type BrainItemRow,
 } from "@/lib/types";
 import { migrateTaxonomy } from "@/lib/taxonomyMigration";
+import { DATA_DIR, UPLOADS_DIR, BUNDLED_UPLOADS_DIR } from "@/lib/paths";
 
-// In the packaged desktop app, electron/main.js points this at a directory
-// outside the app bundle (Electron's userData path) so the library survives
-// reinstalls/updates — the bundle itself is replaced wholesale on every
-// build. Falls back to a project-relative folder for `npm run dev`/`start`.
-const DATA_DIR = process.env.VISUAL_BRAIN_DATA_DIR || path.join(process.cwd(), "data");
 const DB_PATH = path.join(DATA_DIR, "visual-brain.db");
 
-fs.mkdirSync(path.join(DATA_DIR, "uploads"), { recursive: true });
+fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+
+// The seed items reference placeholder SVGs that ship in the bundle; copy
+// them into the data dir when it lives elsewhere (the packaged app).
+if (UPLOADS_DIR !== BUNDLED_UPLOADS_DIR && fs.existsSync(BUNDLED_UPLOADS_DIR)) {
+  for (const name of fs.readdirSync(BUNDLED_UPLOADS_DIR)) {
+    const dest = path.join(UPLOADS_DIR, name);
+    if (name.startsWith("__placeholder") && !fs.existsSync(dest)) {
+      fs.copyFileSync(path.join(BUNDLED_UPLOADS_DIR, name), dest);
+    }
+  }
+}
 
 declare global {
   var __brainDb: Database.Database | undefined;
@@ -420,7 +427,7 @@ export function deleteItem(id: string): boolean {
   getDb().prepare("DELETE FROM items WHERE id = ?").run(id);
 
   if (!item.filename.startsWith("__placeholder")) {
-    const filePath = path.join(DATA_DIR, "uploads", item.filename);
+    const filePath = path.join(UPLOADS_DIR, item.filename);
     fs.rm(filePath, { force: true }, () => {});
   }
 

@@ -6,8 +6,7 @@ import { createItem, updateItem } from "@/lib/db";
 import { analyzeScreenshot } from "@/lib/analysis";
 import { FALLBACK_CATEGORY } from "@/lib/analysis-shared";
 import type { BrainItem } from "@/lib/types";
-
-const UPLOADS_DIR = path.join(process.cwd(), "data", "uploads");
+import { UPLOADS_DIR } from "@/lib/paths";
 
 export const EXT_BY_MIME: Record<string, string> = {
   "image/jpeg": ".jpg",

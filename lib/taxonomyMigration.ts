@@ -3,8 +3,7 @@ import path from "node:path";
 import fs from "node:fs";
 import { matchAllowed } from "@/lib/tags";
 import { CATEGORIES, SEED_TAGS } from "@/lib/types";
-
-const UPLOADS_DIR = path.join(process.cwd(), "data", "uploads");
+import { UPLOADS_DIR } from "@/lib/paths";
 
 /**
  * One-time remap from the old free-form taxonomy to the new fixed one.

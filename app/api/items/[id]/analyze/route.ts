@@ -4,8 +4,7 @@ import fs from "node:fs/promises";
 import { getItem, updateItem } from "@/lib/db";
 import { analyzeScreenshot } from "@/lib/analysis";
 import { EXT_BY_MIME } from "@/lib/ingest";
-
-const UPLOADS_DIR = path.join(process.cwd(), "data", "uploads");
+import { UPLOADS_DIR } from "@/lib/paths";
 
 const MIME_BY_EXT: Record<string, string> = Object.fromEntries(
   Object.entries(EXT_BY_MIME).map(([mime, ext]) => [ext, mime]),
