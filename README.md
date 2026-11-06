@@ -22,6 +22,14 @@ The builds aren't code-signed yet, so each OS asks you to confirm the first laun
 - **macOS** — open the `.dmg`, drag Visual Brain into Applications, and launch it. When
   macOS says it can't verify the app, open **System Settings → Privacy & Security**,
   scroll down, and click **Open Anyway**.
+
+  If macOS instead says **"Visual Brain" is damaged and can't be opened**, the app is
+  fine; macOS has quarantined the download. Click **Cancel** (not Move to Trash), then
+  run this once in Terminal and open the app again:
+
+  ```bash
+  xattr -cr "/Applications/Visual Brain.app"
+  ```
 - **Windows** — if SmartScreen shows "Windows protected your PC", click **More info →
   Run anyway**.
 - **Linux** — make the AppImage executable, then run it:
